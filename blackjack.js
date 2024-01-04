@@ -2,45 +2,53 @@ const puppeteer = require('puppeteer');
 const config = require('./config.json');
 
 (async () => {
-let browser;
-try {
-    browser = await puppeteer.launch({ headless: false });
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
+    let browser;
+    try {
+        browser = await puppeteer.launch({ headless: false });
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1920, height: 1080 });
 
-    const waitFor = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
+        const waitFor = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-    const navigateTo = async (url) => {
-        try {
-            await page.goto(url, { waitUntil: 'networkidle2' });
-        } catch (error) {
-            console.error(`Error navigating to ${url}:`, error);
-            throw error;
+        const navigateTo = async (url) => {
+            try {
+                await page.goto(url, { waitUntil: 'networkidle2' });
+            } catch (error) {
+                console.error(`Error navigating to ${url}:`, error);
+                throw error;
+            }
+        };
+
+        await navigateTo('https://filelist.io/login.php');
+        await page.waitForSelector('#username', { timeout: 3000 });
+        await page.type('#username', config.username);
+        await page.type('#password', config.password);
+        await page.click('.btn');
+        await page.waitForNavigation({ timeout: 2500 }).catch(() => {
+            console.log("Navigation timeout after login, proceeding anyway.");
+        });
+
+        const getCoinBalance = async () => {
+            const balanceSelector = "img[src='/styles/images/flcoins.png']";
+            try {
+                const balanceText = await page.evaluate((sel) => {
+                    const img = document.querySelector(sel);
+                    return img.nextSibling.textContent.trim();
+                }, balanceSelector);
+                return parseFloat(balanceText.replace(/,/g, '')); // Remove commas for proper conversion to number
+            } catch (e) {
+                console.error('Error fetching coin balance:', e);
+                return null;
+            }
+        };
+
+        const startingCoins = await getCoinBalance();
+        if (startingCoins === null) {
+            throw new Error('Unable to fetch starting coin balance');
         }
-    };
+        console.log(`Login successful. Starting coin balance: ${startingCoins}`);
 
-    await navigateTo('https://filelist.io/login.php');
-    await page.waitForSelector('#username', { timeout: 3000 });
-    await page.type('#username', config.username);
-    await page.type('#password', config.password);
-    await page.click('.btn');
-    await page.waitForNavigation({ timeout: 3000 }).catch(() => {
-        console.log("Navigation timeout after login, proceeding anyway.");
-    });
-
-    const getCoinBalance = async () => {
-        const balanceSelector = "img[src='/styles/images/flcoins.png']";
-        const balanceText = await page.evaluate((sel) => {
-            const img = document.querySelector(sel);
-            return img.nextSibling.textContent.trim();
-        }, balanceSelector);
-        return parseFloat(balanceText.replace(/,/g, '')); // Remove commas for proper conversion to number
-    };
-
-    const startingCoins = await getCoinBalance();
-    console.log(`Login successful. Starting coin balance: ${startingCoins}`);
-
-    await navigateTo('https://filelist.io/blackjack.php');
+        await navigateTo('https://filelist.io/blackjack.php');
 
     const getPointsInfo = async () => {
         return await page.evaluate(() => {
@@ -57,15 +65,19 @@ try {
 
     const makeDecision = async (points) => {
         if (points < 17) {
-            const hitButtonExists = await page.$('input[type="submit"][value="Hit Me!"]') !== null;
+            const hitButtonSelector = 'input[type="submit"][value="Hit Me!"]';
+            const hitButtonExists = await page.$(hitButtonSelector) !== null;
             if (hitButtonExists) {
-                await page.click('input[type="submit"][value="Hit Me!"]');
+                await page.waitForSelector(hitButtonSelector, { visible: true });
+                await page.click(hitButtonSelector);
                 console.log("Action: Hit");
             }
         } else {
-            const stayButtonExists = await page.$('input[type="submit"][value="Stay!"]') !== null;
+            const stayButtonSelector = 'input[type="submit"][value="Stay!"]';
+            const stayButtonExists = await page.$(stayButtonSelector) !== null;
             if (stayButtonExists) {
-                await page.click('input[type="submit"][value="Stay!"]');
+                await page.waitForSelector(stayButtonSelector, { visible: true });
+                await page.click(stayButtonSelector);
                 console.log("Action: Stay");
             }
             return false; // No more actions needed, stay means end of the game
@@ -80,15 +92,17 @@ try {
         while (gameInProgress) {
             try {
                 if (isFirstRound) {
-                    const playButtonExists = await page.$('input[type="submit"][value="Play!"]') !== null;
-                    if (playButtonExists) {
-                        await page.click('input[type="submit"][value="Play!"]');
+                    const playButtonSelector = 'input[type="submit"][value="Play!"]';
+                    if (await page.$(playButtonSelector) !== null) {
+                        await page.waitForSelector(playButtonSelector, { visible: true });
+                        await page.click(playButtonSelector);
                         isFirstRound = false;
                     } else {
                         console.log("Play button not found, checking for Continue button.");
-                        const continueButtonExists = await page.$('input[type="submit"][value="Continue!"]') !== null;
-                        if (continueButtonExists) {
-                            await page.click('input[type="submit"][value="Continue!"]');
+                        const continueButtonSelector = 'input[type="submit"][value="Continue!"]';
+                        if (await page.$(continueButtonSelector) !== null) {
+                            await page.waitForSelector(continueButtonSelector, { visible: true });
+                            await page.click(continueButtonSelector);
                             isFirstRound = false;
                         } else {
                             console.log("Neither Play nor Continue button found. Unable to continue the game.");
@@ -148,6 +162,9 @@ try {
     }
 
     const endingCoins = await getCoinBalance();
+    if (endingCoins === null) {
+        throw new Error('Unable to fetch ending coin balance');
+    }
     console.log(`All ${config.numberOfGames} games played.`);
     console.log(`Ending coin balance: ${endingCoins}`);
 
