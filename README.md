@@ -1,4 +1,4 @@
-# Filelist Gift Automation
+# Filelist BlackJack Automation
 
 This project automates the process of logging into Filelist.io and automatically plays blackjack using Puppeteer.
 
