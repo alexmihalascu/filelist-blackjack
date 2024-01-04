@@ -1,6 +1,6 @@
-# Filelist Gift Automation
+# Filelist BlackJack Automation
 
-This project automates the process of logging into Filelist.io and automatically plays blackjack using Puppeteer.
+This project automates the process of logging into Filelist.io and playing blackjack using Puppeteer.
 
 ## Requirements
 
@@ -40,13 +40,11 @@ This project automates the process of logging into Filelist.io and automatically
     Modify the `config.json` file in the root of the project with your Filelist.io credentials:
 
     ```json
-    [
     {
         "username": "yourUsername",
         "password": "yourPassword",
         "numberOfGames": 5
     }
-    ]
     ```
 
     Replace `yourUsername` and `yourPassword` with your actual Filelist.io credentials, and modify `5` from `numberOfGames` with how many games do you want the script to play. Ensure this file is kept secure and not shared publicly.
