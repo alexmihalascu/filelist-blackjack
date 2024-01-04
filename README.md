@@ -1,6 +1,6 @@
 # Filelist BlackJack Automation
 
-This project automates the process of logging into Filelist.io and automatically plays blackjack using Puppeteer.
+This project automates the process of logging into Filelist.io and playing blackjack using Puppeteer.
 
 ## Requirements
 
